@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Traffic Signal Control System</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+</head>
+<body>
+
+  <!-- ── TOP NAV ─────────────────────────────────────────────────── -->
+  <nav class="topnav">
+    <div class="nav-brand">
+      <span class="brand-icon">⬡</span>
+      <span class="brand-name">TrafficOS</span>
+      <span class="brand-version">v2.0</span>
+    </div>
+    <div class="nav-center">
+      <div class="system-status" id="system-status">
+        <span class="status-dot" id="status-dot"></span>
+        <span id="status-text">Connecting...</span>
+      </div>
+    </div>
+    <div class="nav-right">
+      <span class="nav-time" id="nav-time"></span>
+      <button class="btn-icon" onclick="toggleConfig()" title="Settings">⚙</button>
+    </div>
+  </nav>
+
+  <!-- ── MAIN GRID ───────────────────────────────────────────────── -->
+  <main class="main-grid">
+
+    <!-- LEFT: VIDEO + STATS ──────────────────────────────────────── -->
+    <section class="col-left">
+
+      <!-- Video Feeds - 4 lanes -->
+      <div class="card card-video">
+        <div class="card-header">
+          <span class="card-title">Live Feeds</span>
+          <div class="card-badges">
+            <span class="badge badge-rec">● REC</span>
+            <button class="btn-sm" onclick="toggleCombined()" id="btn-combined">Combined view</button>
+          </div>
+        </div>
+        <div class="feeds-grid" id="feeds-grid">
+          <div class="feed-cell">
+            <img src="/video_feed/lane_north" alt="North"/>
+            <span class="feed-label">North</span>
+          </div>
+          <div class="feed-cell">
+            <img src="/video_feed/lane_south" alt="South"/>
+            <span class="feed-label">South</span>
+          </div>
+          <div class="feed-cell">
+            <img src="/video_feed/lane_east" alt="East"/>
+            <span class="feed-label">East</span>
+          </div>
+          <div class="feed-cell">
+            <img src="/video_feed/lane_west" alt="West"/>
+            <span class="feed-label">West</span>
+          </div>
+        </div>
+        <div class="feeds-combined hidden" id="feeds-combined">
+          <img src="/video_feed/combined" alt="Combined" style="width:100%;display:block;"/>
+        </div>
+      </div>
+
+      <!-- Lane Count Cards -->
+      <div class="lane-counts" id="lane-counts">
+        <div class="lane-card" id="card-lane_north" data-lane="lane_north">
+          <div class="lane-direction">N</div>
+          <div class="lane-count" id="count-lane_north">0</div>
+          <div class="lane-label">North</div>
+          <div class="lane-bar"><div class="lane-bar-fill" id="bar-lane_north"></div></div>
+        </div>
+        <div class="lane-card" id="card-lane_east" data-lane="lane_east">
+          <div class="lane-direction">E</div>
+          <div class="lane-count" id="count-lane_east">0</div>
+          <div class="lane-label">East</div>
+          <div class="lane-bar"><div class="lane-bar-fill" id="bar-lane_east"></div></div>
+        </div>
+        <div class="lane-card" id="card-lane_south" data-lane="lane_south">
+          <div class="lane-direction">S</div>
+          <div class="lane-count" id="count-lane_south">0</div>
+          <div class="lane-label">South</div>
+          <div class="lane-bar"><div class="lane-bar-fill" id="bar-lane_south"></div></div>
+        </div>
+        <div class="lane-card" id="card-lane_west" data-lane="lane_west">
+          <div class="lane-direction">W</div>
+          <div class="lane-count" id="count-lane_west">0</div>
+          <div class="lane-label">West</div>
+          <div class="lane-bar"><div class="lane-bar-fill" id="bar-lane_west"></div></div>
+        </div>
+      </div>
+
+      <!-- Traffic Chart
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Hourly Traffic</span>
+          <div class="chart-controls">
+            <button class="btn-tab active" onclick="setChartHours(6, this)">6h</button>
+            <button class="btn-tab" onclick="setChartHours(12, this)">12h</button>
+            <button class="btn-tab" onclick="setChartHours(24, this)">24h</button>
+          </div>
+        </div>
+        <div class="chart-container">
+          <canvas id="traffic-chart"></canvas>
+        </div>
+      </div> -->
+
+    </section>
+
+    <!-- RIGHT: SIGNALS + STATS + HISTORY ────────────────────────── -->
+    <section class="col-right">
+
+      <!-- Signal Lights -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Signal States</span>
+          <span class="active-lane-label">Active: <span id="active-lane">—</span></span>
+        </div>
+        <div class="signals-grid" id="signals-grid">
+          <!-- Injected by JS -->
+        </div>
+      </div>
+
+      <!-- Summary Stats -->
+      <div class="card">
+        <div class="card-header"><span class="card-title">Today's Summary</span></div>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-value" id="stat-total">—</div>
+            <div class="stat-label">Vehicles today</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="stat-green">—</div>
+            <div class="stat-label">Avg green time</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="stat-peak">—</div>
+            <div class="stat-label">Peak vehicles</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="stat-cycles">—</div>
+            <div class="stat-label">Cycles run</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Signal Cycle History
+      <div class="card card-history">
+        <div class="card-header">
+          <span class="card-title">Cycle History</span>
+          <button class="btn-sm" onclick="loadHistory()">Refresh</button>
+        </div>
+        <div class="history-table-wrapper">
+          <table class="history-table">
+            <thead>
+              <tr>
+                <th>Lane</th>
+                <th>Green</th>
+                <th>Vehicles</th>
+                <th>Density</th>
+                <th>Time</th>
+              </tr>
+            </thead>
+            <tbody id="history-tbody">
+              <tr><td colspan="5" class="table-empty">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div> -->
+
+    </section>
+
+  </main>
+
+  <!-- ── CONFIG PANEL (slide-in) ────────────────────────────────── -->
+  <div class="config-overlay" id="config-overlay" onclick="toggleConfig()"></div>
+  <aside class="config-panel" id="config-panel">
+    <div class="config-header">
+      <span class="card-title">Signal Config</span>
+      <button class="btn-icon" onclick="toggleConfig()">✕</button>
+    </div>
+    <div class="config-body">
+      <div class="config-field">
+        <label>Min green time (s)</label>
+        <input type="number" id="cfg-min-green" value="8" min="5" max="30"/>
+      </div>
+      <div class="config-field">
+        <label>Max green time (s)</label>
+        <input type="number" id="cfg-max-green" value="60" min="30" max="120"/>
+      </div>
+      <div class="config-field">
+        <label>Base green time (s)</label>
+        <input type="number" id="cfg-base-green" value="15" min="5" max="60"/>
+      </div>
+      <div class="config-field">
+        <label>Yellow phase (s)</label>
+        <input type="number" id="cfg-yellow" value="4" min="2" max="10"/>
+      </div>
+      <div class="config-field">
+        <label>Density factor</label>
+        <input type="number" id="cfg-density" value="2.0" min="0.5" max="5" step="0.1"/>
+      </div>
+      <div class="config-field">
+        <label>Max vehicles (per lane)</label>
+        <input type="number" id="cfg-max-vehicles" value="30" min="10" max="100"/>
+      </div>
+      <button class="btn-primary" onclick="saveConfig()">Save Config</button>
+      <div class="config-msg" id="config-msg"></div>
+    </div>
+  </aside>
+
+  <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+</body>
+</html>

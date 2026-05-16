@@ -1,0 +1,22 @@
+
+# =================================================================
+# TrafficOS — Python Dependencies
+# Install with: pip install -r requirements.txt
+# Python 3.10+ required
+# =================================================================
+
+# ── Computer Vision & AI ──────────────────────────────────────────
+ultralytics>=8.0.0          # YOLOv8 — vehicle detection
+opencv-python>=4.8.0        # Video capture, frame processing, drawing
+numpy>=1.24.0               # Array operations
+
+# ── Web Framework ─────────────────────────────────────────────────
+flask>=3.0.0                # Web server & routing
+flask-socketio>=5.3.0       # WebSocket real-time updates
+eventlet>=0.35.0            # Async worker for Flask-SocketIO
+
+# ── Database ──────────────────────────────────────────────────────
+mysql-connector-python>=8.3.0   # MySQL connection pool
+
+# ── Utilities ─────────────────────────────────────────────────────
+python-dotenv>=1.0.0        # Optional: load .env config file
